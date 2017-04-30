@@ -94,8 +94,13 @@ public class NavMeshUtility : MonoBehaviour {
 
     public static bool IsFacingUp(Vector3 A, Vector3 B, Vector3 C)
     {
-        Vector3 normal = A.Normal(B, C);
-        return Vector3.Dot(normal, Vector3.up) > Vector3.Dot(normal, Vector3.down);
+        Vector3 normal = NavMeshUtility.Normal(A, B, C);
+        return Vector3.Dot(normal, Vector3.up) < 0;
+    }
+
+    public static Vector3 Normal(Vector3 A, Vector3 B, Vector3 C)
+    {
+        return Vector3.Cross(B - A, B - C).normalized;
     }
 }
 
@@ -115,15 +120,5 @@ public static class VectorHelpers
     public static Vector3 AddY(this Vector2 v)
     {
         return new Vector3(v.x, 0, v.y);
-    }
-
-
-
-    public static Vector3 Normal(this Vector3 a, Vector3 b, Vector3 c)
-    {
-        Vector3 side1 = b - a;
-        Vector3 side2 = c - a;
-
-        return Vector3.Cross(side1, side2).normalized;
     }
 }

@@ -17,7 +17,7 @@ public class NavMeshEdge
                                          ref outIntersection);
 
         intersection.x = outIntersection.x;
-        intersection.y = 0;
+        intersection.y = Mathf.Max(edge1.VertexA.position.y, Mathf.Max(edge1.VertexB.position.y, Mathf.Max(edge2.VertexA.position.y, edge2.VertexB.position.y)));
         intersection.z = outIntersection.y;
         return intersected;
     }
@@ -32,7 +32,7 @@ public class NavMeshEdge
                                          ref outIntersection);
 
         intersection.x = outIntersection.x;
-        intersection.y = edge1.VertexA.position.y + (edge1.VertexB.position.y - edge1.VertexA.position.y)/2;
+        intersection.y = Mathf.Max(edge1.VertexA.position.y, edge1.VertexB.position.y);
         intersection.z = outIntersection.y;
         return intersected;
     }
@@ -47,7 +47,7 @@ public class NavMeshEdge
                                          ref outIntersection);
 
         intersection.x = outIntersection.x;
-        intersection.y = edge1V1.y + (edge1V2.y - edge1V1.y) / 2;
+        intersection.y = Mathf.Max(edge1V1.y, edge1V2.y);
         intersection.z = outIntersection.y;
         return intersected;
     }

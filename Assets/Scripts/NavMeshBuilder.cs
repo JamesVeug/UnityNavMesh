@@ -7,10 +7,12 @@ using UnityEngine;
 public class NavMeshBuilder : MonoBehaviour
 {
     public NavMeshTriangleMono TriangleTemplate;
+
+    public List<Color> colors;
     
     private NavMeshFactory m_factory;
     private NavMesh m_navMesh;
-    
+
     void Start()
     {
         m_factory = new NavMeshFactory();
@@ -34,7 +36,11 @@ public class NavMeshBuilder : MonoBehaviour
             triangles[i] = triangleMonos[i].Data;
         }
         
-        m_navMesh = new NavMeshFactory().BuildMesh(triangles);
+        if(m_factory == null)
+        {
+            m_factory = new NavMeshFactory();
+        }
+        m_navMesh = m_factory.BuildMesh(triangles);
     }
 
     private void ConvertCollisionsToTriangles()
@@ -73,10 +79,16 @@ public class NavMeshBuilder : MonoBehaviour
             return;
         }
 
-        Gizmos.color = Color.green;
-        Handles.color = Color.green;
         for (int i = 0; i < m_navMesh.Mesh.Count; i++)
         {
+            if(colors.Count <= i)
+            {
+                colors.Add(Color.black);
+            }
+
+            Gizmos.color = colors[i];
+            Handles.color = colors[i];
+
             NavMeshPolygon polygon = m_navMesh.Mesh[i];
             DrawPolygonGizmo(polygon.Verticies, 0.1f);
             Handles.Label(polygon.Center(), polygon.ID.ToString());
@@ -85,13 +97,27 @@ public class NavMeshBuilder : MonoBehaviour
 
     private void DrawPolygonGizmo(List<NavMeshVertex> verticies, float heightOffset)
     {
+        Vector3 height = new Vector3(0, heightOffset, 0);
+
+        Vector3 center = Vector3.zero;
         for (int i = 0; i < verticies.Count; i++)
         {
-            Gizmos.DrawSphere(verticies[i].position + new Vector3(0, heightOffset), 0.25f);
-            NavMeshVertex startVertex = verticies[i];
-            NavMeshVertex endVertex = i + 1 < verticies.Count ? verticies[i + 1] : verticies[0];
-            Handles.Label(startVertex.position + Vector3.up, verticies[i].ID.ToString());
-            Gizmos.DrawLine(startVertex.position + new Vector3(0, heightOffset, 0), endVertex.position + new Vector3(0, heightOffset, 0));
+            center += verticies[i].position;
+        }
+        center = center / verticies.Count;
+
+        for (int i = 0; i < verticies.Count; i++)
+        {
+            Vector3 startPosition = verticies[i].position - (verticies[i].position - center).normalized * 0.1f;
+            Vector3 endPosition = i + 1 < verticies.Count ? verticies[i + 1].position : verticies[0].position;
+            endPosition -= (endPosition - center).normalized * 0.1f;
+
+            // Vertex
+            Gizmos.DrawSphere(startPosition + height, 0.25f);
+            Handles.Label(startPosition + Vector3.up, verticies[i].ID.ToString());
+
+            // Edge
+            Gizmos.DrawLine(startPosition + height, endPosition + height);
         }
     }
 }

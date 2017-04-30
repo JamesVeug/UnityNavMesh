@@ -86,6 +86,7 @@ public class NavMeshFactory
         }
 
         // Subtract
+        List<NavMeshPolygon> totalSubtracts = new List<NavMeshPolygon>();
         for (int i = 0; i < m_navMesh.Count; i++)
         {
 
@@ -132,10 +133,9 @@ public class NavMeshFactory
             return false;
         }
 
-        int size = m_navMesh.Count;
-        List<NavMeshPolygon> newPolygons = new List<NavMeshPolygon>();
 
         // Subtract
+        List<NavMeshPolygon> newPolygons = new List<NavMeshPolygon>();
         for (int i = m_navMesh.Count - 1; i >= 0; i--)
         {
             NavMeshPolygon worldMeshPolygon = m_navMesh[i];
@@ -149,19 +149,30 @@ public class NavMeshFactory
                 List<NavMeshPolygon> subtractedPolygons = Subtract(worldMeshPolygon, polygon);
                 newPolygons.AddRange(subtractedPolygons);
                 m_navMesh.RemoveAt(i);
+
+                if(i <= index)
+                {
+                    index--;
+                }
             }
         }
 
-        if (index > m_navMesh.Count - 1)
+        if (newPolygons.Count > 0)
         {
-            m_navMesh.AddRange(newPolygons);
-        }
-        else
-        {
-            m_navMesh.InsertRange(index+1, newPolygons);
+            if (index > m_navMesh.Count - 1)
+            {
+                m_navMesh.AddRange(newPolygons);
+            }
+            else
+            {
+                m_navMesh.InsertRange(index + 1, newPolygons);
+            }
+
+            m_navMesh.RemoveAt(index);
+            return true;
         }
 
-        return size != m_navMesh.Count;
+        return false;
     }
 
     private List<NavMeshPolygon> Subtract(NavMeshPolygon polygon, NavMeshPolygon subtractThis)
@@ -203,7 +214,7 @@ public class NavMeshFactory
             NavMeshVertex edgeV1 = finalOutterVerticies[k].vertex;
             NavMeshVertex edgeV2 = finalOutterVerticies[k].nextVertex;
 
-            Debug.LogWarning(string.Format("Starting Edge {0}-{1}\n\tFinalInner: {2}\n\tFinalOutter: {3}", edgeV1.ID, edgeV2.ID, ToString(finalInnerVerticies), ToString(finalOutterVerticies)));
+            Debug.LogWarning(string.Format("Starting Edge {0}-{1}\n\tFinalInner: {2}\n\tFinalOutter: {3}", edgeV1.ID, edgeV2.ID, ToIDString(finalInnerVerticies), ToIDString(finalOutterVerticies)));
             for (int i = 0; i < finalInnerVerticies.Count; i++)
             {
                 SubtractTest outterVertex = finalInnerVerticies[i];
@@ -231,13 +242,16 @@ public class NavMeshFactory
                 }
 
                 // Add Extra verticies
-                else if (polygon.Contains(edgeV1))
+                if (polygon.Contains(edgeV1))
                 {
-                    Debug.Log("Extra Vertex!");
+                    Debug.Log(string.Format("Extra Vertex! {0} inside \n{1}", edgeV1.position, ToUsableString(finalInnerVerticies)));
                     if (intersection != null)
                     {
                         SubtractTest newVertex = new SubtractTest(intersection, edgeV1);
                         InsertVertex(i + 1, newVertex, finalInnerVerticies);
+
+                        extraVerticies++;
+                        i++;
                     }
                     else if (lastIntersection != null)
                     {
@@ -249,15 +263,15 @@ public class NavMeshFactory
 
                         SubtractTest previousVertex = new SubtractTest(edgeV1, lastIntersection);
                         InsertVertex(i + 1, previousVertex, finalInnerVerticies);
+
+                        extraVerticies++;
+                        i++;
                     }
                     else
                     {
                         // We need to add edgeV1 and MAYBE edgeV2 into the list(inner/outter), after outterVertex.nextVertex.ID
                         Debug.LogError(string.Format("Unknown case:\n\tFinalInnerVerticies: {0}\n\tFinalOutterVerticies: {1}\n\tIntersections: {2} \n\tExtraVerticies: {3} \n\tIntersections: {4}", finalInnerVerticies.Count, finalOutterVerticies.Count, interceptions, extraVerticies, removedVerticies));
                     }
-
-                    extraVerticies++;
-                    i++;
                 }
 
                 lastIntersection = intersection;
@@ -302,12 +316,12 @@ public class NavMeshFactory
         Debug.LogWarning("removedVerticies: " + removedVerticies);
 
         // Teselate if the subtraction is inside
-        if (extraVerticies == 3 && removedVerticies == 0)
+        if (extraVerticies > 0 || removedVerticies > 0)
         {
             // TODO - Return result of teselation
             result.AddRange(Tessellate(finalInnerVerticies));
         }
-        else if (finalInnerVerticies.Count == 3 && extraVerticies == 0 && removedVerticies == 0)
+        else if (finalInnerVerticies.Count > 2)
         {
             // Only a triangle left
             result.Add(polygon);
@@ -315,14 +329,11 @@ public class NavMeshFactory
         else
         {
             // Teselate remaining 
-            result.AddRange(Tessellate(finalInnerVerticies));
+            Debug.LogWarning("Unknown case!!!");
         }
 
         // Tessellate Outter triangle
-        /*if(finalOutterVerticies.Count > 3)
-        {
-            result.AddRange(Tessellate(finalOutterVerticies));
-        }*/
+        result.AddRange(Tessellate(finalOutterVerticies));
 
 
         return result;
@@ -390,7 +401,7 @@ public class NavMeshFactory
             p += "]";
             s += "]";
 
-            throw new Exception(string.Format("Item already exists in list! {0} in list: {1} with positions {2}", item.vertex.ID, s, p));
+            Debug.LogWarning(string.Format("Item already exists in list! {0} in list: {1} with positions {2}", item.vertex.position, s, p));
         }
         else
         {
@@ -402,14 +413,8 @@ public class NavMeshFactory
     {
         List<NavMeshPolygon> polygons = new List<NavMeshPolygon>();
 
-        Debug.Log("Tessellating polygon with " + verticies.Count + " verticies.");
-        if (verticies.Count == 3)
-        {
-            // Return the triangle
-            polygons.Add(CreatePolygon(verticies[0].vertex, verticies[1].vertex, verticies[2].vertex));
-            return polygons;
-        }
-        else if (verticies.Count == 0)
+        Debug.Log("Tessellating polygon with " + verticies.Count + " verticies. \n" + ToUsableString(verticies));
+        if (verticies.Count < 3)
         {
             return polygons;
         }
@@ -428,7 +433,7 @@ public class NavMeshFactory
         int iterations = 0;
         while (verticies.Count > 2)
         {
-            if (++iterations > 1000)
+            if (++iterations > 100)
             {
                 string list = "";
                 for (int i = 0; i < verticies.Count; i++)
@@ -440,7 +445,7 @@ public class NavMeshFactory
                     }
                 }
 
-                throw new Exception("Tessellate: Iterations exceeded 1000 for " + list + ". Can not finish tesselation." );
+                throw new Exception("Tessellate: Iterations exceeded 100 for " + ToUsableString(verticies) + ". Can not finish tesselation." );
             }
 
             BIndex = (AIndex + 1) % verticies.Count;
@@ -451,9 +456,15 @@ public class NavMeshFactory
             C = verticies[CIndex].vertex.position;
 
             // Check this is facing the right way
-            Vector3 normal = A.Normal(B, C);
             if (!NavMeshUtility.IsFacingUp(A, B, C))
             {
+                if(verticies.Count == 3)
+                {
+                    Debug.Log("Triangle is facing down. Breaking. \n" + A + "\n" + B + "\n" + C);
+                    break;
+                }
+                Debug.Log("Triangle is facing down. Ignoreing. \n" + A + "\n" + B + "\n" + C);
+                AIndex = (AIndex + 1) % verticies.Count;
                 continue;
             }
 
@@ -565,13 +576,23 @@ public class NavMeshFactory
         return closestVertex;
     }
 
-    private string ToString(List<SubtractTest> list)
+    private string ToIDString(List<SubtractTest> list)
     {
         string s = "[";
         for (int i = 0; i < list.Count; i++)
         {
-            s += list[i].vertex.ID;
+            s += list[i].vertex.ID + " ";
         }
         return s + "]";
+    }
+
+    private string ToUsableString(List<SubtractTest> list)
+    {
+        string s = "";
+        for (int i = 0; i < list.Count; i++)
+        {
+            s += list[i].vertex.position + "\n";
+        }
+        return s + "";
     }
 }

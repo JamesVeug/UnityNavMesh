@@ -27,7 +27,7 @@ public class NavMeshTriangleMono : MonoBehaviour
 
     void OnDrawGizmos()
     {
-        float heightOffset = 0.1f;
+        float heightOffset = 0.15f;
 
         Gizmos.color = color;
         Handles.color = Color.black;
