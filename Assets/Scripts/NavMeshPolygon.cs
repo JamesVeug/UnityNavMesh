@@ -160,6 +160,27 @@ public class NavMeshPolygon : IEquatable<NavMeshPolygon>
         return ((b1 == b2) && (b2 == b3));
     }
 
+    private bool SameSide(Vector3 p1, Vector3 p2, Vector3 a, Vector3 b)
+    {
+        Vector3 cp1 = Vector3.Cross(b - a, p1 - a);
+        Vector3 cp2 = Vector3.Cross(b - a, p2 - a);
+        if (Vector3.Dot(cp1, cp2) >= 0)
+            return true;
+        else
+            return false;
+    }
+
+
+    public bool PointInTriangle(Vector3 p)
+    {
+        if (SameSide(p, m_verticies[0].position, m_verticies[1].position, m_verticies[2].position) && 
+            SameSide(p, m_verticies[1].position, m_verticies[0].position, m_verticies[2].position) && 
+            SameSide(p, m_verticies[2].position, m_verticies[0].position, m_verticies[1].position))
+            return true;
+        else
+            return false;
+    }
+
     private float sign(Vector3 p1, Vector3 p2, Vector3 p3)
     {
         return (p1.x - p3.x) * (p2.z - p3.z) - (p2.x - p3.x) * (p1.z - p3.z);

@@ -40,6 +40,8 @@ public class NavMeshBuilder : MonoBehaviour
         {
             m_factory = new NavMeshFactory();
         }
+
+        m_factory.Reset();
         m_navMesh = m_factory.BuildMesh(triangles);
     }
 

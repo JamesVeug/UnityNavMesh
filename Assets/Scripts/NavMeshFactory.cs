@@ -64,6 +64,12 @@ public class NavMeshFactory
     private int m_vertexID = 0;
     private Dictionary<int, NavMeshVertex> m_verticies;
 
+    public void Reset()
+    {
+        m_polygonID = 0;
+        m_vertexID = 0;
+    }
+
     public NavMesh BuildMesh(NavMeshTriangle[] objectList)
     {
         m_intersections = new List<NavMeshIntersection>();
@@ -146,7 +152,16 @@ public class NavMeshFactory
 
             if (polygon.Intercepts(worldMeshPolygon))
             {
-                List<NavMeshPolygon> subtractedPolygons = Subtract(worldMeshPolygon, polygon);
+                List<NavMeshPolygon> subtractedPolygons = null;
+                if(polygon.Max().y >= worldMeshPolygon.Max().y)
+                {
+                    subtractedPolygons = Subtract(worldMeshPolygon, polygon);
+                }
+                else
+                {
+                    subtractedPolygons = Subtract(polygon, worldMeshPolygon);
+                }
+                
                 newPolygons.AddRange(subtractedPolygons);
                 m_navMesh.RemoveAt(i);
 
@@ -208,28 +223,29 @@ public class NavMeshFactory
         int interceptions = 0;
         int extraVerticies = 0;
         int removedVerticies = 0;
-        NavMeshVertex lastIntersection = null;
+        SubtractTest lastIntersection = null;
         for (int k = 0; k < finalOutterVerticies.Count; k++)
         {
             NavMeshVertex edgeV1 = finalOutterVerticies[k].vertex;
             NavMeshVertex edgeV2 = finalOutterVerticies[k].nextVertex;
 
-            Debug.LogWarning(string.Format("Starting Edge {0}-{1}\n\tFinalInner: {2}\n\tFinalOutter: {3}", edgeV1.ID, edgeV2.ID, ToIDString(finalInnerVerticies), ToIDString(finalOutterVerticies)));
+            Debug.LogWarning(string.Format("Starting Outter Edge {0}-{1}\n\tFinalInner: {2}\n\tFinalOutter: {3}", edgeV1.position, edgeV2.position, ToIDString(finalInnerVerticies), ToIDString(finalOutterVerticies)));
             for (int i = 0; i < finalInnerVerticies.Count; i++)
             {
                 SubtractTest outterVertex = finalInnerVerticies[i];
-                Debug.Log(string.Format("Vertex {0}-{1}", outterVertex.vertex.ID, outterVertex.nextVertex.ID));
+                Debug.Log(string.Format("Innner Edge {0}-{1}", outterVertex.vertex.position, outterVertex.nextVertex.position));
                 int outterIndex = i;
 
 
                 // Get intersection
                 NavMeshVertex intersection = null;
+                SubtractTest t = null;
                 Vector3 intersectionPosition = Vector3.zero;
                 if (NavMeshEdge.LineIntersection3D(edgeV1.position, edgeV2.position, outterVertex.vertex.position, outterVertex.nextVertex.position, ref intersectionPosition))
                 {
                     intersection = CreateVertex(intersectionPosition);
 
-                    SubtractTest t = new SubtractTest(intersection, outterVertex.nextVertex, true);
+                    t = new SubtractTest(intersection, outterVertex.nextVertex, true);
                     outterVertex.nextVertex = intersection;
 
                     InsertVertex(i + 1, t, finalInnerVerticies);
@@ -242,72 +258,61 @@ public class NavMeshFactory
                 }
 
                 // Add Extra verticies
-                if (polygon.Contains(edgeV1))
+                if (polygon.PointInTriangle(outterVertex.vertex.position))
                 {
-                    Debug.Log(string.Format("Extra Vertex! {0} inside \n{1}", edgeV1.position, ToUsableString(finalInnerVerticies)));
                     if (intersection != null)
                     {
-                        SubtractTest newVertex = new SubtractTest(intersection, edgeV1);
+                        SubtractTest newVertex = new SubtractTest(edgeV1, outterVertex.nextVertex);
                         InsertVertex(i + 1, newVertex, finalInnerVerticies);
-
                         extraVerticies++;
                         i++;
                     }
-                    else if (lastIntersection != null)
+                    /*else if (lastIntersection != null)
                     {
-                        // Create 2. Forward and backwards
+                        /*SubtractTest newVertex = new SubtractTest(edgeV2, lastIntersection.nextVertex);
+                        t.nextVertex = newVertex.vertex;
 
-                        SubtractTest newVertex = new SubtractTest(edgeV2, edgeV1);
                         InsertVertex(i + 1, newVertex, finalInnerVerticies);
-
-
-                        SubtractTest previousVertex = new SubtractTest(edgeV1, lastIntersection);
-                        InsertVertex(i + 1, previousVertex, finalInnerVerticies);
-
                         extraVerticies++;
                         i++;
                     }
                     else
                     {
                         // We need to add edgeV1 and MAYBE edgeV2 into the list(inner/outter), after outterVertex.nextVertex.ID
-                        Debug.LogError(string.Format("Unknown case:\n\tFinalInnerVerticies: {0}\n\tFinalOutterVerticies: {1}\n\tIntersections: {2} \n\tExtraVerticies: {3} \n\tIntersections: {4}", finalInnerVerticies.Count, finalOutterVerticies.Count, interceptions, extraVerticies, removedVerticies));
-                    }
+                        Debug.LogError(string.Format("Unknown case: {0}\n\tFinalInnerVerticies: {1}\n\tFinalOutterVerticies: {2}\n\tIntersections: {3} \n\tExtraVerticies: {4} \n\tIntersections: {5}", edgeV1.position, finalInnerVerticies.Count, finalOutterVerticies.Count, interceptions, extraVerticies, removedVerticies));
+                    }*/
+                    Debug.Log(string.Format("Extra Vertex! {0} inside \n{1}", edgeV1.position, ToUsableString(finalInnerVerticies)));
                 }
 
-                lastIntersection = intersection;
+                lastIntersection = t;
             }
         }
 
         Debug.LogWarning("Finished Edges");
 
         // Remove subtracted verticies
-        for (int i = 0; i < finalInnerVerticies.Count; i++)
+        for (int i = 0; i < finalOutterVerticies.Count; i++)
         {
-            SubtractTest outterVertex = finalInnerVerticies[i];
+            SubtractTest outterVertex = finalOutterVerticies[i];
             if (outterVertex.IsIntersection)
             {
                 continue;
             }
 
-            Debug.Log("Checking if can remove Vertex: " + outterVertex.vertex.ID);
-            if (subtractThis.Contains(outterVertex.vertex))
+            Debug.Log("Checking if can remove Vertex: " + outterVertex.vertex.position);
+            if (polygon.Contains(outterVertex.vertex))
             {
-                Debug.Log("\tSubtracting Vertex " + outterVertex.vertex.ID);
-                SubtractTest previousOutterVertex = finalInnerVerticies[(i - 1 + finalInnerVerticies.Count) % finalInnerVerticies.Count];
+                Debug.Log("\tSubtracting Vertex " + outterVertex.vertex.position);
+                SubtractTest previousOutterVertex = finalOutterVerticies[(i - 1 + finalOutterVerticies.Count) % finalOutterVerticies.Count];
                 previousOutterVertex.nextVertex = outterVertex.nextVertex;
 
                 removedVerticies++;
 
                 // Remove this vertex
-                finalInnerVerticies.RemoveAt(i);
+                finalOutterVerticies.RemoveAt(i);
                 i--;
-
-                StringBuilder b = new StringBuilder("\t\tFinal Vectors: ");
-                foreach (SubtractTest t in finalInnerVerticies)
-                {
-                    b.Append(t.vertex.ID + " ");
-                }
-                Debug.Log(b.ToString());
+                
+                Debug.Log("\t\tFinal Vectors: " + ToUsableString(finalOutterVerticies));
             }
         }
 
@@ -331,6 +336,7 @@ public class NavMeshFactory
             // Teselate remaining 
             Debug.LogWarning("Unknown case!!!");
         }
+        Debug.LogWarning("Done Inner Verticies. Tesselating Outter Vericies of size " + finalOutterVerticies.Count);
 
         // Tessellate Outter triangle
         result.AddRange(Tessellate(finalOutterVerticies));
@@ -485,7 +491,7 @@ public class NavMeshFactory
 
             if (!intersected)
             {
-                Debug.Log(string.Format("Creating Tessellated Polygon from {0} {1} {2}", verticies[AIndex].vertex.ID, verticies[BIndex].vertex.ID, verticies[CIndex].vertex.ID));
+                Debug.Log(string.Format("Creating Tessellated Polygon from {0} {1} {2}\n{3} {4} {5}", verticies[AIndex].vertex.ID, verticies[BIndex].vertex.ID, verticies[CIndex].vertex.ID, verticies[AIndex].vertex.position, verticies[BIndex].vertex.position, verticies[CIndex].vertex.position));
                 polygons.Add(CreatePolygon(A, B, C));
                 verticies.RemoveAt(BIndex);
             }
