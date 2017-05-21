@@ -41,11 +41,6 @@ public class NavMeshPolygon : IEquatable<NavMeshPolygon>
 
     public bool AddVertex(NavMeshVertex vertex)
     {
-        if (m_verticies.Count >= 3)
-        {
-            Debug.LogError("More than 3 points on polygon!");
-            return false;
-        }
         m_verticies.Add(vertex);
 
         if(m_verticies.Count > 1)

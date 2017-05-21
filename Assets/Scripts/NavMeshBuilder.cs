@@ -6,8 +6,9 @@ using UnityEngine;
 
 public class NavMeshBuilder : MonoBehaviour
 {
-    public NavMeshTriangleMono TriangleTemplate;
+	public NavMeshTriangleMono TriangleTemplate;
 
+	public List<NavMeshTriangleMono> ExtraTriangles;
     public List<Color> colors;
     
     private NavMeshFactory m_factory;
@@ -27,35 +28,35 @@ public class NavMeshBuilder : MonoBehaviour
         }
 
 
-        ConvertCollisionsToTriangles();
+		List<NavMeshTriangle> triangles = ConvertCollisionsToTriangles();
+		for (int i = 0; i < ExtraTriangles.Count; i++)
+		{
+			triangles.Add(ExtraTriangles[i].Data);
+		}
 
-        NavMeshTriangleMono[] triangleMonos = FindObjectsOfType<NavMeshTriangleMono>();
-        NavMeshTriangle[] triangles = new NavMeshTriangle[triangleMonos.Length];
-        for (int i = 0; i < triangleMonos.Length; i++)
-        {
-            triangles[i] = triangleMonos[i].Data;
-        }
-        
         if(m_factory == null)
         {
             m_factory = new NavMeshFactory();
         }
-
+		
         m_factory.Reset();
         m_navMesh = m_factory.BuildMesh(triangles);
     }
 
-    private void ConvertCollisionsToTriangles()
+	private List<NavMeshTriangle> ConvertCollisionsToTriangles()
     {
         BoxCollider[] colliders = FindObjectsOfType<BoxCollider>();
+		List<NavMeshTriangle> triangles = new List<NavMeshTriangle>();
 
         foreach (BoxCollider c in colliders)
         {
-            ColliderToTriangles(c);
+            triangles.AddRange(ColliderToTriangles(c));
         }
+
+		return triangles;
     }
 
-    private void ColliderToTriangles(BoxCollider c)
+    public List<NavMeshTriangle> ColliderToTriangles(BoxCollider c)
     {
 
         Bounds b = c.bounds;
@@ -67,14 +68,21 @@ public class NavMeshBuilder : MonoBehaviour
         GameObject o = new GameObject(c.gameObject.name + " Mest");
         o.transform.parent = transform;
 
-        NavMeshTriangleMono triangle1 = Instantiate(TriangleTemplate, o.transform, true);
-        triangle1.Data.SetPositions(tl, tr, br);
+		List<NavMeshTriangle> triangles = new List<NavMeshTriangle>();
 
-        NavMeshTriangleMono triangle2 = Instantiate(TriangleTemplate, o.transform, true);
-        triangle2.Data.SetPositions(br, bl, tl);
+		NavMeshTriangle triangle1 = new NavMeshTriangle();
+		triangle1.SetPositions(tl, tr, br);
+
+		NavMeshTriangle triangle2 = new NavMeshTriangle();
+        triangle2.SetPositions(br, bl, tl);
+
+		triangles.Add(triangle1);
+		triangles.Add(triangle2);
+
+		return triangles;
     }
 
-    private void OnDrawGizmos()
+    /*private void OnDrawGizmos()
     {
         if(m_navMesh == null)
         {
@@ -121,7 +129,7 @@ public class NavMeshBuilder : MonoBehaviour
             // Edge
             Gizmos.DrawLine(startPosition + height, endPosition + height);
         }
-    }
+    }*/
 }
 
 

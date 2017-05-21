@@ -14,7 +14,7 @@ public class NavMeshFactoryTests
         NavMeshTriangle B = new NavMeshTriangle(Vector3(0, 0, 1), Vector3(1.5f, 0, 1), Vector3(1.5f, 0, 0));
 
         NavMeshFactory factory = new NavMeshFactory();
-        NavMesh mesh = factory.BuildMesh(ToArray(A, B));
+		NavMesh mesh = factory.BuildMesh(ToList(A, B));
 
         AssertIntersections(mesh, Vector3(1, 0, 1), Vector3(1.5f, 0, 0.5f));
     }
@@ -57,6 +57,11 @@ public class NavMeshFactoryTests
     {
         return triangles;
     }
+
+	private List<NavMeshTriangle> ToList(params NavMeshTriangle[] triangles)
+	{
+		return new List<NavMeshTriangle>(triangles);
+	}
 
     private Vector3 Vector3(float x, float y, float z)
     {

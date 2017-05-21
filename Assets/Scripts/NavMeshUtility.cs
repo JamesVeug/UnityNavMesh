@@ -102,6 +102,17 @@ public class NavMeshUtility : MonoBehaviour {
     {
         return Vector3.Cross(B - A, B - C).normalized;
     }
+
+	public static List<NavMeshVertex> DeepClone(List<NavMeshVertex> list)
+	{
+		var clone = new List<NavMeshVertex>();
+		for (int i = 0; i < list.Count; i++)
+		{
+			clone.Add(new NavMeshVertex(list[i].position, list[i].ID));
+		}
+
+		return clone;
+	}
 }
 
 public static class VectorHelpers

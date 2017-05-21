@@ -70,19 +70,19 @@ public class NavMeshFactory
         m_vertexID = 0;
     }
 
-    public NavMesh BuildMesh(NavMeshTriangle[] objectList)
+    public NavMesh BuildMesh(List<NavMeshTriangle> objectList)
     {
         m_intersections = new List<NavMeshIntersection>();
         m_verticies = new Dictionary<int, NavMeshVertex>();
         m_navMesh = new List<NavMeshPolygon>();
-        
-        Array.Sort<NavMeshTriangle>(objectList, (a, b) =>
+		        
+        objectList.Sort((a, b) =>
         {
             return Mathf.FloorToInt(a.Min().y - b.Min().y);
         });
 
         // Build Mesh
-        for (int i = 0; i < objectList.Length; i++)
+        for (int i = 0; i < objectList.Count; i++)
         {
             NavMeshTriangle collider = objectList[i];
 
@@ -91,21 +91,21 @@ public class NavMeshFactory
             AddPolygons(newPolygons);
         }
 
+		// Logging
+		NavMeshLog.Instance.Clear();
+		NavMeshLog.Instance.Log(m_navMesh, LogStep.Stage, "Colliders to Mesh");
+
         // Subtract
         List<NavMeshPolygon> totalSubtracts = new List<NavMeshPolygon>();
         for (int i = 0; i < m_navMesh.Count; i++)
         {
-
-            if (i >= m_navMesh.Count || i < 0)
-            {
-                Debug.Log("WHAT");
-            }
             NavMeshPolygon polygon = m_navMesh[i];
 
             int worldSize = m_navMesh.Count;
             if (SubtractPolygonFromWorld(polygon, i))
             {
-                //m_navMesh.re
+				// Subtracted polygon from the world
+				NavMeshLog.Instance.Log(m_navMesh, LogStep.Stage, string.Format("Subtracting {0} from world.", polygon.ID));
             }
 
             int subtracted = Math.Max(0, m_navMesh.Count - worldSize);
@@ -113,6 +113,8 @@ public class NavMeshFactory
         }
 
         Debug.Log("Finished building Mesh with " + m_navMesh.Count + " triangles");
+
+		NavMeshLog.Instance.Log(m_navMesh, LogStep.Completion, "Finished Building NavMesh");
 
         NavMesh mesh = new NavMesh();
         mesh.Mesh = m_navMesh;
@@ -320,6 +322,8 @@ public class NavMeshFactory
         Debug.LogWarning("extraVerticies: " + extraVerticies);
         Debug.LogWarning("removedVerticies: " + removedVerticies);
 
+		NavMeshLog.Instance.Log(ToPolygon(finalInnerVerticies), LogStep.Stage, string.Format("Subtracted {0} from {1}", polygon.ID, subtractThis.ID));
+
         // Teselate if the subtraction is inside
         if (extraVerticies > 0 || removedVerticies > 0)
         {
@@ -344,6 +348,16 @@ public class NavMeshFactory
 
         return result;
     }
+
+	private NavMeshPolygon ToPolygon(List<SubtractTest> list)
+	{
+		NavMeshPolygon polygon = new NavMeshPolygon(-1);
+		for (int i = 0; i < list.Count; i++)
+		{
+			polygon.AddVertex(list[i].vertex);
+		}
+		return polygon;
+	}
 
     private void InsertVertex(List<SubtractTest> verticies, int startingIndex, NavMeshVertex start, NavMeshVertex end, Vector3 intersectionPosition)
     {
@@ -492,8 +506,11 @@ public class NavMeshFactory
             if (!intersected)
             {
                 Debug.Log(string.Format("Creating Tessellated Polygon from {0} {1} {2}\n{3} {4} {5}", verticies[AIndex].vertex.ID, verticies[BIndex].vertex.ID, verticies[CIndex].vertex.ID, verticies[AIndex].vertex.position, verticies[BIndex].vertex.position, verticies[CIndex].vertex.position));
-                polygons.Add(CreatePolygon(A, B, C));
+				NavMeshPolygon polygon = CreatePolygon(A, B, C);
+				polygons.Add(polygon);
                 verticies.RemoveAt(BIndex);
+
+				NavMeshLog.Instance.Log(polygon, LogStep.Tesselation, "Tesselated Portion");
             }
 
             AIndex = (AIndex + 1) % verticies.Count;
